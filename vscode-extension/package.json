@@ -1,7 +1,7 @@
 {
     "name": "agent-control-plane",
     "displayName": "Agent Control Plane",
-    "description": "A time-travel debugger for AI agents that reconstructs cognition from deterministic execution traces.",
+    "description": "A time-travel debugger for AI agents. Reconstructs cognition from deterministic execution traces, supports LangGraph visualization, step-by-step replay, state inspection, diff views, hierarchy grouping, run comparison, root-cause analysis, and counterfactual simulation.",
     "version": "1.0.0",
     "publisher": "acp",
     "engines": {
@@ -18,29 +18,149 @@
     "contributes": {
         "commands": [
             {
+                "command": "acp.openTrace",
+                "title": "ACP: Open Trace",
+                "category": "Agent Control Plane",
+                "icon": "$(folder-opened)"
+            },
+            {
                 "command": "acp.openRun",
-                "title": "ACP: Open Agent Run",
+                "title": "ACP: Open SDK Run Folder",
+                "category": "Agent Control Plane",
+                "icon": "$(folder)"
+            },
+            {
+                "command": "acp.showPanel",
+                "title": "ACP: Show Trace Inspector",
                 "category": "Agent Control Plane"
+            },
+            {
+                "command": "acp.analyzeTrace",
+                "title": "ACP: Run Diagnosis",
+                "category": "Agent Control Plane",
+                "icon": "$(beaker)"
+            },
+            {
+                "command": "acp.showLangGraph",
+                "title": "ACP: Show Execution Graph",
+                "category": "Agent Control Plane",
+                "icon": "$(type-hierarchy)"
             },
             {
                 "command": "acp.openFailure",
-                "title": "ACP: Open at First Failure",
-                "category": "Agent Control Plane"
-            },
-            {
-                "command": "acp.compareRun",
-                "title": "ACP: Compare With Another Run",
-                "category": "Agent Control Plane"
-            },
-            {
-                "command": "acp.counterfactual",
-                "title": "ACP: Run Counterfactual Simulation",
-                "category": "Agent Control Plane"
+                "title": "ACP: Jump to First Failure",
+                "category": "Agent Control Plane",
+                "icon": "$(error)"
             },
             {
                 "command": "acp.generateReport",
                 "title": "ACP: Generate Diagnosis Report",
+                "category": "Agent Control Plane",
+                "icon": "$(output)"
+            },
+            {
+                "command": "acp.compareRun",
+                "title": "ACP: Compare Two Runs",
+                "category": "Agent Control Plane",
+                "icon": "$(diff)"
+            },
+            {
+                "command": "acp.counterfactual",
+                "title": "ACP: Create Counterfactual Simulation",
+                "category": "Agent Control Plane",
+                "icon": "$(git-branch)"
+            },
+            {
+                "command": "acp.jumpToStep",
+                "title": "ACP: Jump to Step",
                 "category": "Agent Control Plane"
+            },
+            {
+                "command": "acp.hierarchy.groupByPhase",
+                "title": "ACP: Group by Phase",
+                "category": "Agent Control Plane",
+                "icon": "$(list-tree)"
+            },
+            {
+                "command": "acp.hierarchy.groupByStatus",
+                "title": "ACP: Group by Status",
+                "category": "Agent Control Plane",
+                "icon": "$(warning)"
+            },
+            {
+                "command": "acp.hierarchy.groupByNone",
+                "title": "ACP: Flat List (No Grouping)",
+                "category": "Agent Control Plane",
+                "icon": "$(list-flat)"
+            },
+            {
+                "command": "acp.replay.play",
+                "title": "ACP: Replay - Play",
+                "category": "Agent Control Plane",
+                "icon": "$(debug-start)"
+            },
+            {
+                "command": "acp.replay.pause",
+                "title": "ACP: Replay - Pause",
+                "category": "Agent Control Plane",
+                "icon": "$(debug-pause)"
+            },
+            {
+                "command": "acp.replay.stop",
+                "title": "ACP: Replay - Stop",
+                "category": "Agent Control Plane",
+                "icon": "$(debug-stop)"
+            },
+            {
+                "command": "acp.replay.next",
+                "title": "ACP: Replay - Next Step",
+                "category": "Agent Control Plane",
+                "icon": "$(debug-step-over)"
+            },
+            {
+                "command": "acp.replay.prev",
+                "title": "ACP: Replay - Previous Step",
+                "category": "Agent Control Plane",
+                "icon": "$(debug-step-back)"
+            },
+            {
+                "command": "acp.replay.start",
+                "title": "ACP: Replay - Jump to Start",
+                "category": "Agent Control Plane"
+            },
+            {
+                "command": "acp.replay.end",
+                "title": "ACP: Replay - Jump to End",
+                "category": "Agent Control Plane"
+            },
+            {
+                "command": "acp.replay.jump",
+                "title": "ACP: Replay - Jump to Step",
+                "category": "Agent Control Plane"
+            },
+            {
+                "command": "acp.replay.search",
+                "title": "ACP: Replay - Search Steps",
+                "category": "Agent Control Plane",
+                "icon": "$(search)"
+            },
+            {
+                "command": "acp.searchSteps",
+                "title": "ACP: Search Steps",
+                "category": "Agent Control Plane",
+                "icon": "$(search)"
+            },
+            {
+                "command": "acp.exportGraph",
+                "title": "ACP: Export Graph",
+                "category": "Agent Control Plane",
+                "icon": "$(export)"
+            },
+            {
+                "command": "acp.graph.branch",
+                "title": "ACP: Branch from Graph Node",
+                "category": "Agent Control Plane",
+                "icon": "$(git-branch)"
             }
         ],
         "viewsContainers": {
@@ -54,6 +174,21 @@
         },
         "views": {
             "acp-replay": [
+                {
+                    "id": "acp.tracesView",
+                    "name": "Traces",
+                    "type": "tree"
+                },
+                {
+                    "id": "acp.stepsView",
+                    "name": "Steps",
+                    "type": "tree"
+                },
+                {
+                    "id": "acp.hierarchyView",
+                    "name": "Hierarchy",
+                    "type": "tree"
+                },
                 {
                     "id": "acp.timelinePanel",
                     "name": "Timeline",
@@ -70,16 +205,100 @@
                     "type": "webview"
                 },
                 {
-                    "id": "acp.hierarchyView",
-                    "name": "Hierarchy"
+                    "id": "acp.searchView",
+                    "name": "Search",
+                    "type": "webview"
+                },
+                {
+                    "id": "acp.stateMetrics",
+                    "name": "State Metrics",
+                    "type": "webview"
                 }
             ]
         },
         "menus": {
             "commandPalette": [
                 {
+                    "command": "acp.openTrace",
+                    "when": "true"
+                },
+                {
                     "command": "acp.openRun",
                     "when": "true"
+                },
+                {
+                    "command": "acp.showPanel",
+                    "when": "true"
+                },
+                {
+                    "command": "acp.analyzeTrace",
+                    "when": "true"
+                },
+                {
+                    "command": "acp.showLangGraph",
+                    "when": "true"
+                },
+                {
+                    "command": "acp.openFailure",
+                    "when": "true"
+                },
+                {
+                    "command": "acp.generateReport",
+                    "when": "true"
+                },
+                {
+                    "command": "acp.compareRun",
+                    "when": "true"
+                },
+                {
+                    "command": "acp.counterfactual",
+                    "when": "true"
+                },
+                {
+                    "command": "acp.hierarchy.groupByPhase",
+                    "when": "true"
+                },
+                {
+                    "command": "acp.hierarchy.groupByStatus",
+                    "when": "true"
+                },
+                {
+                    "command": "acp.hierarchy.groupByNone",
+                    "when": "true"
+                },
+                {
+                    "command": "acp.searchSteps",
+                    "when": "true"
+                },
+                {
+                    "command": "acp.exportGraph",
+                    "when": "true"
+                },
+                {
+                    "command": "acp.graph.branch",
+                    "when": "true"
+                }
+            ],
+            "view/title": [
+                {
+                    "command": "acp.openTrace",
+                    "when": "view == acp.tracesView",
+                    "group": "navigation"
+                },
+                {
+                    "command": "acp.hierarchy.groupByPhase",
+                    "when": "view == acp.hierarchyView",
+                    "group": "navigation"
+                },
+                {
+                    "command": "acp.hierarchy.groupByStatus",
+                    "when": "view == acp.hierarchyView",
+                    "group": "navigation"
+                },
+                {
+                    "command": "acp.hierarchy.groupByNone",
+                    "when": "view == acp.hierarchyView",
+                    "group": "navigation"
                 }
             ]
         }
@@ -87,11 +306,16 @@
     "scripts": {
         "vscode:prepublish": "npm run compile",
         "compile": "tsc -p ./",
-        "watch": "tsc -watch -p ./"
+        "watch": "tsc -watch -p ./",
+        "test": "mocha out/test/**/*.test.js --timeout 15000 --exit"
     },
     "devDependencies": {
+        "@types/mocha": "^10.0.10",
         "@types/node": "^20.10.0",
         "@types/vscode": "^1.85.0",
+        "mocha": "^10.8.2",
         "typescript": "^5.3.2"
+    },
+    "dependencies": {
     }
 }

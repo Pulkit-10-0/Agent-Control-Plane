@@ -86,6 +86,7 @@ and deterministic replay.
 - [Behavioral Testing](#behavioral-testing)
 - [Behavioral Analysis Engine](#behavioral-analysis-engine)
 - [VS Code Extension](#vs-code-extension)
+- [New Features (v1.1)](#new-features-v11)
 - [Success Metrics & Roadmap](#success-metrics--roadmap)
 - [Security & Privacy](#security--privacy)
 - [Definition of Done](#definition-of-done)
@@ -195,30 +196,44 @@ Project Structure
 powershell
 Copy code
 Agent-Control-Plane/
-├── src/
-│   ├── core/
-│   │   ├── types.ts
-│   │   ├── trace-recorder.ts
-│   │   ├── agent-runtime.ts
-│   │   ├── replay-engine.ts
-│   │   ├── step-inspector.ts
-│   │   ├── test-engine.ts
-│   │   └── analyzer.ts
-│   ├── cli/
-│   │   ├── inspect.ts
-│   │   ├── test-runner.ts
-│   │   └── analyze.ts
-│   └── agent/
-│       ├── llm-provider.ts
-│       ├── tools.ts
-│       ├── run.ts
-│       └── replay.ts
+├── .github/
+│   └── workflows/
+│       └── ci.yml                    # GitHub Actions CI pipeline
+├── ACP-sdk/
+│   └── src/
+│       ├── __init__.py               # SDK package exports
+│       └── langgraph_adapter.py      # Python LangGraph tracer
 ├── vscode-extension/
-│   └── src/extension.ts
-├── tests/
-│   ├── basic.yaml
-│   └── broken-agent.yaml
-└── traces/
+│   └── src/
+│       ├── extension.ts              # Main entry point (~1200 lines)
+│       ├── commands/
+│       │   └── CommandHandlers.ts    # SDK-format command implementations
+│       ├── data/
+│       │   ├── DataTypes.ts          # Core interfaces + schema versioning
+│       │   ├── RunContext.ts         # Singleton state manager
+│       │   └── RunLoader.ts          # Loads meta.json + steps.jsonl
+│       ├── engines/
+│       │   ├── AnalysisEngine.ts     # Invariant checks, root-cause analysis
+│       │   ├── ComparisonEngine.ts   # Step alignment + graph diffing
+│       │   └── CounterfactualEngine.ts # Fork-and-modify simulations
+│       ├── langgraph/
+│       │   ├── LangGraphBuilder.ts   # Trace → StateGraph → Mermaid
+│       │   └── LangGraphExporter.ts  # Export as Python/TS/Mermaid
+│       ├── providers/
+│       │   └── DiffContentProvider.ts
+│       ├── ui/
+│       │   ├── LangGraphProvider.ts  # SVG graph panel + collapsible groups
+│       │   ├── ComparisonViewProvider.ts # Tabbed comparison (steps + graph diff)
+│       │   ├── TimelineProvider.ts   # Phase-colored step timeline
+│       │   ├── StateInspectorProvider.ts # Input/output/memory inspector
+│       │   ├── DiffViewProvider.ts   # VS Code native diff
+│       │   ├── HierarchyProvider.ts  # Group by phase/status
+│       │   ├── SearchProvider.ts     # Full-text search sidebar
+│       │   └── StateMetricsProvider.ts # Sparkline/bar chart metrics
+│       └── test/
+│           └── langgraph.test.ts     # 20+ unit tests
+├── traces/                           # Trace output directory
+└── README.md
 ```
 
 ### Trace Format
@@ -319,6 +334,8 @@ tests:
 
 #### Features:
 
+- **LangGraph Execution Graph** -- Uses `@langchain/langgraph` to model traces as compiled `StateGraph` instances, with interactive SVG graph rendering, Mermaid diagram export, and input/output toggle per node.
+
 - Workspace trace explorer
 
 - Step-by-step trace inspection
@@ -327,19 +344,163 @@ tests:
 
 - Integrated analysis
 
+- Time-travel replay controls
+
 ### Commands:
 
 ```
-ACP: Open Trace File
-
-ACP: Show Trace Inspector
-
-ACP: Analyze Current Trace
-
-ACP: Run Agent
+ACP: Open Trace               — Open a JSON trace or SDK run folder
+ACP: Open SDK Run Folder       — Open an SDK run-folder trace
+ACP: Show Trace Inspector      — Show the replay panel
+ACP: Run Diagnosis             — Run invariant checks and root-cause analysis
+ACP: Show Execution Graph      — Open the LangGraph visualization
+ACP: Jump to First Failure     — Navigate to the first error step
+ACP: Generate Diagnosis Report — Create a detailed HTML report
+ACP: Compare Two Runs          — Side-by-side comparison with graph diff
+ACP: Create Counterfactual     — Fork a run with modified inputs
+ACP: Search Steps              — Open full-text search sidebar
+ACP: Export Graph              — Export as Python / TypeScript / Mermaid
+ACP: Branch from Graph Node    — Fork from a selected graph node
+ACP: Replay - Play/Pause/Stop  — Time-travel replay controls
+ACP: Group by Phase/Status     — Hierarchy view grouping
 ```
 
 Note: Live tracing and inline assertions are planned.
+
+---
+
+## New Features (v1.1)
+
+### 1. SDK LangGraph Adapter (Python)
+
+Record LangGraph-native traces directly from Python using the ACP SDK.
+
+```python
+from acp_sdk import ACPLangGraphTracer, LangGraphCallbackTracer
+
+# Manual tracing
+tracer = ACPLangGraphTracer(output_dir="./traces")
+tracer.capture_graph(graph)  # Captures graph topology
+tracer.record_step(step_id=1, phase="reason", input_data={...}, output_data={...})
+tracer.finalize()
+
+# Automatic callback-based tracing
+cb_tracer = LangGraphCallbackTracer(output_dir="./traces")
+# Pass as callback to LangGraph invoke()
+```
+
+**Files:** [ACP-sdk/src/langgraph_adapter.py](ACP-sdk/src/langgraph_adapter.py), [ACP-sdk/src/__init__.py](ACP-sdk/src/__init__.py)
+
+### 2. Graph Diff Comparison
+
+Compare two runs side-by-side with structural graph diffing. The comparison view now has two tabs:
+
+- **Step Alignment** — traditional step-by-step comparison with divergence detection
+- **Graph Diff** — shows added/removed/changed nodes and edges between two runs, color-coded (green = added, red = removed, orange = changed)
+
+```
+Command: ACP: Compare Two Runs
+```
+
+**Files:** [ComparisonEngine.ts](vscode-extension/src/engines/ComparisonEngine.ts), [ComparisonViewProvider.ts](vscode-extension/src/ui/ComparisonViewProvider.ts)
+
+### 3. Counterfactual Branching from Graph
+
+Fork a run directly from any node in the execution graph. Click a node, then click "Fork from this node" to create a counterfactual simulation with modified inputs.
+
+```
+Command: ACP: Branch from Graph Node
+```
+
+The forked run is saved as a new `run_<timestamp>_sim` folder and immediately loaded for inspection.
+
+**Files:** [LangGraphProvider.ts](vscode-extension/src/ui/LangGraphProvider.ts), [CounterfactualEngine.ts](vscode-extension/src/engines/CounterfactualEngine.ts)
+
+### 4. Full-Text Search
+
+Search across all trace steps with type-based filtering. The search sidebar provides:
+
+- Text search across step inputs and outputs
+- Filter chips: **All**, **LLM**, **Tool**, **Error**, **State**
+- Click results to jump to the matching step
+
+```
+Command: ACP: Search Steps
+```
+
+**File:** [SearchProvider.ts](vscode-extension/src/ui/SearchProvider.ts)
+
+### 5. LangGraph Export
+
+Export the execution graph as standalone code files:
+
+| Format      | Output                                     |
+|-------------|-------------------------------------------|
+| **Python**  | Full `langgraph` script with node functions and routing |
+| **TypeScript** | Complete TypeScript module with `StateGraph` setup |
+| **Mermaid** | Markdown with Mermaid diagram and metadata |
+
+```
+Command: ACP: Export Graph
+```
+
+**File:** [LangGraphExporter.ts](vscode-extension/src/langgraph/LangGraphExporter.ts)
+
+### 6. Unit Tests
+
+Comprehensive test suite covering the LangGraph pipeline:
+
+- `buildLangGraph()` — graph construction from traces
+- `normalizeRunToTraceData()` — SDK-to-trace format conversion
+- `LangGraphExporter` — Python/TypeScript/Mermaid code generation
+
+```bash
+cd vscode-extension
+npm test
+```
+
+**File:** [test/langgraph.test.ts](vscode-extension/src/test/langgraph.test.ts)
+
+### 7. GitHub Actions CI
+
+Automated CI pipeline with:
+
+- **TypeScript**: Lint (`tsc --noEmit`), compile, test, package `.vsix`
+- **Python SDK**: Syntax validation, import checks
+- Matrix: Node.js 18/20, Python 3.10/3.12
+
+**File:** [.github/workflows/ci.yml](.github/workflows/ci.yml)
+
+### 8. Trace Schema Versioning
+
+All traces now carry a `schema_version` field for forward compatibility:
+
+- `RunMeta.schema_version` — semantic version string (default: `"1.0.0"`)
+- `RunLoader` validates on load, warns on unknown/missing versions
+- Python SDK writes `TRACE_SCHEMA_VERSION = "1.0.0"` automatically
+- Known versions tracked in `KNOWN_SCHEMA_VERSIONS` array
+
+**Files:** [DataTypes.ts](vscode-extension/src/data/DataTypes.ts), [RunLoader.ts](vscode-extension/src/data/RunLoader.ts)
+
+### 9. Collapsible Node Groups
+
+When a graph has more than 15 nodes, the Nodes tab automatically groups them by type (LLM, Tool, Error, etc.) with collapsible sections showing aggregate stats (count, total duration). Click the group header to expand/collapse.
+
+**File:** [LangGraphProvider.ts](vscode-extension/src/ui/LangGraphProvider.ts)
+
+### 10. State Metrics Sidebar
+
+A dedicated sidebar view showing execution metrics:
+
+- **Summary stats** — total steps, average/max duration
+- **Bar chart** — step durations color-coded by phase
+- **Sparkline** — cumulative execution time
+- **Phase distribution** — breakdown by reason/tool/observe/memory
+- **Status distribution** — ok/error/retry counts
+
+Updates automatically as you navigate through steps.
+
+**File:** [StateMetricsProvider.ts](vscode-extension/src/ui/StateMetricsProvider.ts)
 
 --- 
 
@@ -351,22 +512,25 @@ Note: Live tracing and inline assertions are planned.
 | Full step inspection     | ✅      |
 | Behavioral tests         | ✅      |
 | Regression detection     | ✅      |
-| CI integration           | 🚧      |
-| Trace diffing            | Planned |
+| CI integration           | ✅      |
+| Trace diffing            | ✅      |
+| Graph diff comparison    | ✅      |
+| Full-text search         | ✅      |
+| LangGraph export         | ✅      |
+| Schema versioning        | ✅      |
+| State metrics            | ✅      |
+| Counterfactual branching | ✅      |
 		
 
 --- 
 
 ## Roadmap
-- CI/CD helpers
-
-- Trace diff visualization
-
-- Live execution tracing
-
-- Multi-agent correlation
-
-- Distributed replay
+- Live execution tracing (real-time streaming)
+- Multi-agent correlation and cross-trace linking
+- Distributed replay across services
+- Inline assertion overlays in the graph view
+- AI-powered root-cause suggestions
+- Trace anonymization and export for sharing
 
 ## Security & Privacy
 - Traces may contain sensitive inputs

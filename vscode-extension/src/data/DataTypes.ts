@@ -6,7 +6,14 @@ export interface RunMeta {
     tools: string[];
     seed: number;
     created_at: string;
+    schema_version?: string;
 }
+
+/** Current schema version for new traces */
+export const TRACE_SCHEMA_VERSION = '1.0.0';
+
+/** All known schema versions for migration/validation */
+export const KNOWN_SCHEMA_VERSIONS = ['1.0.0'];
 
 export type StepPhase = 'reason' | 'tool' | 'observe' | 'memory';
 export type StepStatus = 'ok' | 'error' | 'retry';
@@ -20,7 +27,7 @@ export interface AgentStep {
     state_ref: string; // e.g., "snapshots/step_17.json"
     diff_ref?: string; // e.g., "diffs/step_17.diff.json"
     status: StepStatus;
-    
+
     // Computed/Runtime fields
     duration?: number;
     semanticLabels?: string[];

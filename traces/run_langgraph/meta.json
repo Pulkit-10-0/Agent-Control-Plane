@@ -1,0 +1,10 @@
+{
+  "run_id": "run_langgraph_demo",
+  "agent_version": "1.0.0",
+  "llm": "gpt-4",
+  "temperature": 0.2,
+  "tools": ["web_search", "read_file", "write_file", "summarize"],
+  "seed": 42,
+  "created_at": "2026-03-01T10:00:00Z",
+  "schema_version": "1.0.0"
+}

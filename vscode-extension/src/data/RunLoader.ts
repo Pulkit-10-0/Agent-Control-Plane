@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { RunMeta, AgentStep, RunArtifacts, StateSnapshot, StateDiff } from './DataTypes';
+import { RunMeta, AgentStep, RunArtifacts, StateSnapshot, StateDiff, TRACE_SCHEMA_VERSION, KNOWN_SCHEMA_VERSIONS } from './DataTypes';
 
 export class RunLoader {
     private runPath: string;
@@ -10,6 +10,29 @@ export class RunLoader {
 
     constructor(runPath: string) {
         this.runPath = runPath;
+    }
+
+    /**
+     * Validate and normalize the schema version of a loaded run.
+     * Warns on unknown or missing versions, and migrates if necessary.
+     */
+    private validateSchema(meta: RunMeta): void {
+        if (!meta.schema_version) {
+            console.warn(
+                `[ACP] Run ${meta.run_id}: No schema_version field. Assuming v${TRACE_SCHEMA_VERSION}. ` +
+                'Consider re-recording with the latest SDK.'
+            );
+            meta.schema_version = TRACE_SCHEMA_VERSION;
+            return;
+        }
+
+        if (!KNOWN_SCHEMA_VERSIONS.includes(meta.schema_version)) {
+            console.warn(
+                `[ACP] Run ${meta.run_id}: Unknown schema version "${meta.schema_version}". ` +
+                `Known versions: ${KNOWN_SCHEMA_VERSIONS.join(', ')}. ` +
+                'Some features may not work correctly.'
+            );
+        }
     }
 
     public async load(): Promise<RunArtifacts> {
@@ -27,6 +50,7 @@ export class RunLoader {
             throw new Error(`meta.json not found in ${this.runPath}`);
         }
         this.meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+        this.validateSchema(this.meta!);
 
         // Load steps.jsonl
         const stepsPath = path.join(this.runPath, 'steps.jsonl');
@@ -79,13 +103,13 @@ export class RunLoader {
     }
 
     public getToolOutput(stepId: number, type: 'stdout' | 'stderr'): string | null {
-         // This assumes a convention not explicitly detailed in the "tools/" section of the spec 
-         // but implied by "tools/step_14.stdout".
-         // The spec says: tools/step_14.stdout
-         const filename = `step_${stepId}.${type}`;
-         const toolOutputPath = path.join(this.runPath, 'tools', filename);
-         
-         if (!fs.existsSync(toolOutputPath)) return null;
-         return fs.readFileSync(toolOutputPath, 'utf-8');
+        // This assumes a convention not explicitly detailed in the "tools/" section of the spec 
+        // but implied by "tools/step_14.stdout".
+        // The spec says: tools/step_14.stdout
+        const filename = `step_${stepId}.${type}`;
+        const toolOutputPath = path.join(this.runPath, 'tools', filename);
+
+        if (!fs.existsSync(toolOutputPath)) return null;
+        return fs.readFileSync(toolOutputPath, 'utf-8');
     }
 }

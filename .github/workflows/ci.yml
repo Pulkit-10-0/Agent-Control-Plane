@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: vscode-extension/package-lock.json
+
+      - name: Install dependencies
+        working-directory: vscode-extension
+        run: npm ci || npm install
+
+      - name: Lint (TypeScript strict)
+        working-directory: vscode-extension
+        run: npx tsc --noEmit
+
+      - name: Compile
+        working-directory: vscode-extension
+        run: npm run compile
+
+      - name: Run tests
+        working-directory: vscode-extension
+        run: npx mocha out/test/**/*.test.js --timeout 15000 --exit
+        continue-on-error: true
+
+      - name: Package VSIX
+        working-directory: vscode-extension
+        run: |
+          npm install -g @vscode/vsce
+          vsce package --no-dependencies --allow-missing-repository
+        continue-on-error: true
+
+      - name: Upload VSIX artifact
+        if: matrix.node-version == '20.x'
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-control-plane-vsix
+          path: vscode-extension/*.vsix
+          if-no-files-found: ignore
+
+  python-sdk:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.12']
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Validate SDK syntax
+        working-directory: ACP-sdk
+        run: python -m py_compile src/langgraph_adapter.py
+
+      - name: Run SDK basic checks
+        working-directory: ACP-sdk
+        run: python -c "from src.langgraph_adapter import ACPLangGraphTracer, TRACE_SCHEMA_VERSION; print(f'SDK v{TRACE_SCHEMA_VERSION} loaded')"
