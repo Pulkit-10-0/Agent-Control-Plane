@@ -6,3 +6,278 @@ All code changes are automatically logged here.
 
 ---
 
+### Step 18 — 2026-03-29T06:14:46.120Z
+- File: backend\src\parser.js
+- Line: 1
+- Change: const fs = require('fs'); const path = require('path');  const ROOT = path.join(__dirname, '..',
+
+### Step 19 — 2026-03-29T06:15:00.928Z
+- File: backend\src\geminiClient.js
+- Line: 1
+- Change: const fs = require('fs'); const path = require('path'); require('dotenv').config({ path: path.join
+
+### Step 20 — 2026-03-29T06:15:23.511Z
+- File: backend\src\watcher.js
+- Line: 1
+- Change: const fs = require('fs'); const path = require('path'); const parser = require('./parser'); const
+
+### Step 21 — 2026-03-29T06:15:39.410Z
+- File: backend\src\inputProcessor.js
+- Line: 1
+- Change: const fs = require('fs'); const path = require('path');  const ROOT = path.join(__dirname, '..',
+
+### Step 22 — 2026-03-29T06:15:46.795Z
+- File: backend\src\deployer.js
+- Line: 1
+- Change: const { exec } = require('child_process'); const path = require('path');  const ROOT = path.join(
+
+### Step 23 — 2026-03-29T06:25:34.456Z
+- File: .env.local
+- Line: 1
+- Change: # Example local environment GEMINI_API_KEY=your_api_key_here GEMINI_API_URL= GEMINI_MODEL=gemini-2.0
+
+### Step 24 — 2026-03-29T06:27:23.901Z
+- File: backend\src\parser.js
+- Line: 97
+- Change: (deletion)
+
+### Step 25 — 2026-03-29T06:27:23.906Z
+- File: backend\src\geminiClient.js
+- Line: 113
+- Change: (deletion)
+
+### Step 26 — 2026-03-29T06:27:24.141Z
+- File: backend\src\watcher.js
+- Line: 143
+- Change: (deletion)
+
+### Step 27 — 2026-03-29T06:27:24.147Z
+- File: backend\src\inputProcessor.js
+- Line: 111
+- Change: (deletion)
+
+### Step 28 — 2026-03-29T06:27:24.176Z
+- File: backend\src\deployer.js
+- Line: 37
+- Change: (deletion)
+
+### Step 29 — 2026-03-29T06:45:41.668Z
+- File: backend\src\geminiClient.js
+- Line: 5
+- Change: if (!global.fetch) {   try {     global.fetch = require('node-fetch');   } catch (e) {     c
+
+### Step 30 — 2026-03-29T06:45:41.683Z
+- File: backend\src\watcher.js
+- Line: 143
+- Change: try {         startWatching();     } catch (error) {         console.error('Fatal watcher error:'
+
+### Step 31 — 2026-03-29T06:45:42.463Z
+- File: backend\src\parser.js
+- Line: 97
+- Change: if (!prompt || prompt.length === 0) {         throw new Error('Built prompt is empty; check CONTEXT
+
+### Step 32 — 2026-03-29T06:46:02.845Z
+- File: backend\src\parser.js
+- Line: 23
+- Change: try {         const files = {             context: path.join(ROOT, 'CONTEXT.md'),             pro
+
+### Step 33 — 2026-03-29T06:46:12.188Z
+- File: backend\package.json
+- Line: 13
+- Change: ,     "node-fetch": "^2.6.7"
+
+### Step 34 — 2026-03-29T06:47:40.525Z
+- File: backend\src\geminiClient.js
+- Line: 12
+- Change: (deletion)
+
+### Step 35 — 2026-03-29T06:54:12.360Z
+- File: backend\src\agentRunner.js
+- Line: 169
+- Change: (deletion)
+
+### Step 36 — 2026-03-29T07:37:00.710Z
+- File: backend\src\agentRunner.js
+- Line: 1
+- Change: const fs = require('fs'); const path = require('path'); const geminiClient = require('./geminiClie
+
+### Step 37 — 2026-03-29T07:38:38.779Z
+- File: backend\src\agentRunner.js
+- Line: 1
+- Change: const fs = require('fs'); const path = require('path'); const geminiClient = require('./geminiClie
+
+### Step 38 — 2026-03-29T07:52:13.170Z
+- File: backend\src\watcher.js
+- Line: 1
+- Change: const fs = require('fs'); const path = require('path'); const parser = require('./parser'); const
+
+### Step 39 — 2026-03-29T07:52:21.129Z
+- File: backend\src\agentRunner.js
+- Line: 1
+- Change: const fs = require('fs'); const path = require('path'); const geminiClient = require('./geminiClie
+
+### Step 40 — 2026-03-29T08:31:39.319Z
+- File: .env.local
+- Line: 2
+- Change: AIzaSyAPhsxGprN2pyx7iqFXXGGgqGNqw0GxvpQ
+
+### Step 41 — 2026-03-29T08:59:31.993Z
+- File: .env.local
+- Line: 1
+- Change: # Example local environment GEMINI_API_KEYAIzaSyAPhsxGprN2pyx7iqFXXGGgqGNqw0GxvpQe GEMINI_API_URL=
+
+### Step 42 — 2026-03-29T08:59:31.995Z
+- File: backend\package.json
+- Line: 1
+- Change: {   "name": "test-backend",   "version": "1.0.0",   "description": "Test backend for ACP tracing
+
+### Step 43 — 2026-03-29T08:59:32.012Z
+- File: backend\src\parser.js
+- Line: 1
+- Change: const fs = require('fs'); const path = require('path');  const ROOT = path.join(__dirname, '..',
+
+### Step 44 — 2026-03-29T08:59:32.025Z
+- File: backend\src\geminiClient.js
+- Line: 1
+- Change: const fs = require('fs'); const path = require('path'); require('dotenv').config({ path: path.join
+
+### Step 45 — 2026-03-29T08:59:32.039Z
+- File: backend\src\watcher.js
+- Line: 1
+- Change: const fs = require('fs'); const path = require('path'); const parser = require('./parser'); const
+
+### Step 46 — 2026-03-29T08:59:32.143Z
+- File: backend\src\inputProcessor.js
+- Line: 1
+- Change: const fs = require('fs'); const path = require('path');  const ROOT = path.join(__dirname, '..',
+
+### Step 47 — 2026-03-29T08:59:32.145Z
+- File: backend\src\deployer.js
+- Line: 1
+- Change: const { exec } = require('child_process'); const path = require('path');  const ROOT = path.join(
+
+### Step 48 — 2026-03-29T08:59:32.165Z
+- File: backend\src\agentRunner.js
+- Line: 1
+- Change: const fs = require('fs'); const path = require('path'); const geminiClient = require('./geminiClie
+
+### Step 49 — 2026-03-29T09:15:26.670Z
+- File: .env.local
+- Line: 1
+- Change: # Example local environment GEMINI_API_KEYAIzaSyAPhsxGprN2pyx7iqFXXGGgqGNqw0GxvpQe GEMINI_API_URL=
+
+### Step 50 — 2026-03-29T09:15:26.672Z
+- File: backend\package.json
+- Line: 1
+- Change: {   "name": "test-backend",   "version": "1.0.0",   "description": "Test backend for ACP tracing
+
+### Step 51 — 2026-03-29T09:15:26.735Z
+- File: backend\src\parser.js
+- Line: 1
+- Change: const fs = require('fs'); const path = require('path');  const ROOT = path.join(__dirname, '..',
+
+### Step 52 — 2026-03-29T09:15:26.747Z
+- File: backend\src\geminiClient.js
+- Line: 1
+- Change: const fs = require('fs'); const path = require('path'); require('dotenv').config({ path: path.join
+
+### Step 53 — 2026-03-29T09:15:26.760Z
+- File: backend\src\watcher.js
+- Line: 1
+- Change: const fs = require('fs'); const path = require('path'); const parser = require('./parser'); const
+
+### Step 54 — 2026-03-29T09:15:26.773Z
+- File: backend\src\inputProcessor.js
+- Line: 1
+- Change: const fs = require('fs'); const path = require('path');  const ROOT = path.join(__dirname, '..',
+
+### Step 55 — 2026-03-29T09:15:26.795Z
+- File: backend\src\deployer.js
+- Line: 1
+- Change: const { exec } = require('child_process'); const path = require('path');  const ROOT = path.join(
+
+### Step 56 — 2026-03-29T09:15:26.955Z
+- File: backend\src\agentRunner.js
+- Line: 1
+- Change: const fs = require('fs'); const path = require('path'); const geminiClient = require('./geminiClie
+
+### Step 57 — 2026-03-29T09:30:09.178Z
+- File: backend\src\server.js
+- Line: 26
+- Change: z
+
+### Step 58 — 2026-03-29T09:31:38.363Z
+- File: backend\src\server.js
+- Line: 26
+- Change: (deletion)
+
+### Step 59 — 2026-03-29T10:11:06.515Z
+- File: .env.local
+- Line: 1
+- Change: # Example local environment GEMINI_API_KEYAIzaSyAPhsxGprN2pyx7iqFXXGGgqGNqw0GxvpQe GEMINI_API_URL=
+
+### Step 60 — 2026-03-29T10:11:06.519Z
+- File: backend\package.json
+- Line: 1
+- Change: {   "name": "test-backend",   "version": "1.0.0",   "description": "Test backend for ACP tracing
+
+### Step 61 — 2026-03-29T10:11:06.705Z
+- File: backend\src\parser.js
+- Line: 1
+- Change: const fs = require('fs'); const path = require('path');  const ROOT = path.join(__dirname, '..',
+
+### Step 62 — 2026-03-29T10:11:06.707Z
+- File: backend\src\geminiClient.js
+- Line: 1
+- Change: const fs = require('fs'); const path = require('path'); require('dotenv').config({ path: path.join
+
+### Step 63 — 2026-03-29T10:11:06.723Z
+- File: backend\src\watcher.js
+- Line: 1
+- Change: const fs = require('fs'); const path = require('path'); const parser = require('./parser'); const
+
+### Step 64 — 2026-03-29T10:11:06.740Z
+- File: backend\src\inputProcessor.js
+- Line: 1
+- Change: const fs = require('fs'); const path = require('path');  const ROOT = path.join(__dirname, '..',
+
+### Step 65 — 2026-03-29T10:11:06.759Z
+- File: backend\src\deployer.js
+- Line: 1
+- Change: const { exec } = require('child_process'); const path = require('path');  const ROOT = path.join(
+
+### Step 66 — 2026-03-29T10:11:06.940Z
+- File: backend\src\agentRunner.js
+- Line: 1
+- Change: const fs = require('fs'); const path = require('path'); const geminiClient = require('./geminiClie
+
+### Step 67 — 2026-03-29T10:14:12.828Z
+- File: backend\src\server.js
+- Line: 1
+- Change: const express = require('express'); const cors = require('cors'); require('dotenv').config();  c
+
+### Step 68 — 2026-03-29T10:14:45.614Z
+- File: frontend\public\app.js
+- Line: 1
+- Change: const API_URL = 'http://localhost:3001/api';  const machineSelect = document.getElementById('machi
+
+### Step 69 — 2026-03-29T10:14:46.180Z
+- File: backend\src\server.js
+- Line: 1
+- Change: const express = require('express'); const cors = require('cors'); require('dotenv').config();  c
+
+### Step 70 — 2026-03-29T10:15:23.099Z
+- File: frontend\public\index.html
+- Line: 1
+- Change: <!DOCTYPE html> <html lang="en"> <head>     <meta charset="UTF-8">     <meta name="viewport" con
+
+### Step 71 — 2026-03-29T10:15:23.806Z
+- File: backend\src\server.js
+- Line: 1
+- Change: const express = require('express'); const cors = require('cors'); require('dotenv').config();  c
+
+### Step 72 — 2026-03-29T10:15:23.809Z
+- File: frontend\public\app.js
+- Line: 1
+- Change: const API_URL = 'http://localhost:3001/api';  const machineSelect = document.getElementById('machi
+

@@ -1,142 +1,220 @@
-/**
- * ACP Test Frontend - Task Manager
- * Connects to backend API for task management
- */
-
 const API_URL = 'http://localhost:3001/api';
 
-// DOM Elements
-const taskList = document.getElementById('task-list');
-const taskInput = document.getElementById('task-input');
-const statusEl = document.getElementById('status');
+const machineSelect = document.getElementById('machine-select');
+const productList = document.getElementById('product-list');
+const customerStatus = document.getElementById('customer-status');
+const txResult = document.getElementById('tx-result');
 
-// Stats elements
-const statTotal = document.getElementById('stat-total');
-const statCompleted = document.getElementById('stat-completed');
-const statPending = document.getElementById('stat-pending');
-const statRate = document.getElementById('stat-rate');
+const adminEmail = document.getElementById('admin-email');
+const adminPassword = document.getElementById('admin-password');
+const adminLoginBtn = document.getElementById('admin-login-btn');
+const adminStatus = document.getElementById('admin-status');
+const machineTable = document.getElementById('machine-table');
+const txTable = document.getElementById('tx-table');
 
-// Initialize
-document.addEventListener('DOMContentLoaded', () => {
-    loadTasks();
-    loadStats();
+let selectedMachine = null;
+let adminToken = '';
 
-    // Enter key to add task
-    taskInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            addTask();
-        }
-    });
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadMachines();
+    adminLoginBtn.addEventListener('click', adminLogin);
 });
 
-// Load all tasks from backend
-async function loadTasks() {
-    try {
-        const response = await fetch(`${API_URL}/tasks`);
-        const data = await response.json();
+async function api(path, options = {}) {
+    const res = await fetch(`${API_URL}${path}`, options);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(data.error || 'Request failed');
+    }
+    return data;
+}
 
-        renderTasks(data.tasks);
-        setStatus('Connected to backend', 'connected');
-    } catch (error) {
-        console.error('Failed to load tasks:', error);
-        setStatus('Failed to connect to backend', 'error');
-        taskList.innerHTML = '<div class="empty">Unable to load tasks. Is the backend running?</div>';
+async function loadMachines() {
+    try {
+        const data = await api('/machines');
+        machineSelect.innerHTML = data.machines
+            .map((m) => `<option value="${m.id}">${m.id} - ${m.name}</option>`)
+            .join('');
+
+        selectedMachine = data.machines[0]?.id || null;
+        machineSelect.addEventListener('change', async (e) => {
+            selectedMachine = e.target.value;
+            await loadProductsForMachine();
+        });
+
+        await loadProductsForMachine();
+        setText(customerStatus, 'Customer kiosk ready.');
+    } catch (err) {
+        setText(customerStatus, `Machine load failed: ${err.message}`);
     }
 }
 
-// Load stats from backend
-async function loadStats() {
-    try {
-        const response = await fetch(`${API_URL}/stats`);
-        const data = await response.json();
-
-        statTotal.textContent = data.total;
-        statCompleted.textContent = data.completed;
-        statPending.textContent = data.pending;
-        statRate.textContent = data.completionRate;
-    } catch (error) {
-        console.error('Failed to load stats:', error);
-    }
-}
-
-// Render tasks to DOM
-function renderTasks(tasks) {
-    if (tasks.length === 0) {
-        taskList.innerHTML = '<div class="empty">No tasks yet. Add one above!</div>';
+async function loadProductsForMachine() {
+    if (!selectedMachine) {
+        productList.innerHTML = '<div class="empty">No machine available.</div>';
         return;
     }
 
-    taskList.innerHTML = tasks.map(task => `
-        <div class="task-item ${task.completed ? 'completed' : ''}" data-id="${task.id}">
-            <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTask(${task.id}, this.checked)">
-            <span class="title">${escapeHtml(task.title)}</span>
-            <button class="delete" onclick="deleteTask(${task.id})">×</button>
-        </div>
-    `).join('');
+    try {
+        const data = await api(`/machines/${selectedMachine}/products`);
+        if (!data.items.length) {
+            productList.innerHTML = '<div class="empty">No products found for this machine.</div>';
+            return;
+        }
+
+        productList.innerHTML = data.items
+            .map((item) => {
+                const disabled = item.qty < 1 ? 'disabled' : '';
+                const buttonLabel = item.qty < 1 ? 'Out of stock' : 'Pay & Dispense';
+                return `
+                    <div class="product-card">
+                        <div class="top-row">
+                            <strong>${escapeHtml(item.product.name)}</strong>
+                            <span>Slot ${item.slot}</span>
+                        </div>
+                        <div class="meta">
+                            <span>Price: INR ${item.product.price}</span>
+                            <span>Stock: ${item.qty}</span>
+                        </div>
+                        <button ${disabled} onclick="startPurchase('${item.product.id}')">${buttonLabel}</button>
+                    </div>
+                `;
+            })
+            .join('');
+    } catch (err) {
+        productList.innerHTML = `<div class="empty">${escapeHtml(err.message)}</div>`;
+    }
 }
 
-// Add new task
-async function addTask() {
-    const title = taskInput.value.trim();
-    if (!title) return;
-
+async function startPurchase(productId) {
     try {
-        const response = await fetch(`${API_URL}/tasks`, {
+        setText(customerStatus, 'Initiating payment...');
+
+        const initData = await api('/transactions/initiate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title })
+            body: JSON.stringify({ machineId: selectedMachine, productId })
         });
 
-        if (response.ok) {
-            taskInput.value = '';
-            loadTasks();
-            loadStats();
-        }
-    } catch (error) {
-        console.error('Failed to add task:', error);
-        setStatus('Failed to add task', 'error');
-    }
-}
+        const tx = initData.transaction;
+        setText(customerStatus, `UPI payment reference: ${tx.paymentRef}. Verifying...`);
 
-// Toggle task completion
-async function toggleTask(id, completed) {
-    try {
-        await fetch(`${API_URL}/tasks/${id}`, {
-            method: 'PUT',
+        const paymentData = await api('/payments/verify', {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ completed })
+            body: JSON.stringify({ transactionId: tx.id, success: true })
         });
 
-        loadTasks();
-        loadStats();
-    } catch (error) {
-        console.error('Failed to update task:', error);
+        if (paymentData.transaction.status !== 'paid') {
+            throw new Error('Payment was not successful');
+        }
+
+        const dispenseData = await api(`/machines/${selectedMachine}/dispense`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transactionId: tx.id })
+        });
+
+        const result = dispenseData.transaction;
+        txResult.innerHTML = `
+            <div class="success-box">
+                <div><strong>Transaction:</strong> ${escapeHtml(result.id)}</div>
+                <div><strong>Status:</strong> ${escapeHtml(result.status)}</div>
+                <div><strong>Dispensed At:</strong> ${escapeHtml(result.dispensedAt || '-')}</div>
+            </div>
+        `;
+
+        setText(customerStatus, 'Payment successful. Item dispensed.');
+        await loadProductsForMachine();
+        if (adminToken) {
+            await loadAdminData();
+        }
+    } catch (err) {
+        setText(customerStatus, `Purchase failed: ${err.message}`);
     }
 }
 
-// Delete task
-async function deleteTask(id) {
+async function adminLogin() {
     try {
-        await fetch(`${API_URL}/tasks/${id}`, {
-            method: 'DELETE'
+        const data = await api('/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: adminEmail.value.trim(),
+                password: adminPassword.value.trim()
+            })
         });
 
-        loadTasks();
-        loadStats();
-    } catch (error) {
-        console.error('Failed to delete task:', error);
+        adminToken = data.token;
+        setText(adminStatus, `Logged in as ${data.user.role}: ${data.user.email}`);
+        await loadAdminData();
+    } catch (err) {
+        setText(adminStatus, `Login failed: ${err.message}`);
     }
 }
 
-// Helper: Set status message
-function setStatus(message, type = '') {
-    statusEl.textContent = message;
-    statusEl.className = 'status ' + type;
+async function loadAdminData() {
+    await Promise.all([loadAdminMachines(), loadAdminTransactions()]);
 }
 
-// Helper: Escape HTML to prevent XSS
+async function loadAdminMachines() {
+    try {
+        const data = await api('/admin/machines', {
+            headers: { 'x-auth-token': adminToken }
+        });
+
+        machineTable.innerHTML = data.machines
+            .map((m) => `
+                <tr>
+                    <td>${escapeHtml(m.id)}</td>
+                    <td>${escapeHtml(m.name)}</td>
+                    <td>${escapeHtml(m.status)}</td>
+                    <td>${m.totalUnits}</td>
+                    <td>${m.lowStock}</td>
+                </tr>
+            `)
+            .join('');
+    } catch (err) {
+        machineTable.innerHTML = `<tr><td colspan="5">${escapeHtml(err.message)}</td></tr>`;
+    }
+}
+
+async function loadAdminTransactions() {
+    try {
+        const data = await api('/admin/transactions', {
+            headers: { 'x-auth-token': adminToken }
+        });
+
+        if (!data.transactions.length) {
+            txTable.innerHTML = '<tr><td colspan="5">No transactions yet.</td></tr>';
+            return;
+        }
+
+        txTable.innerHTML = data.transactions
+            .slice(0, 10)
+            .map((tx) => `
+                <tr>
+                    <td>${escapeHtml(tx.id)}</td>
+                    <td>${escapeHtml(tx.machineId)}</td>
+                    <td>${escapeHtml(tx.productId)}</td>
+                    <td>${escapeHtml(tx.status)}</td>
+                    <td>INR ${tx.amount}</td>
+                </tr>
+            `)
+            .join('');
+    } catch (err) {
+        txTable.innerHTML = `<tr><td colspan="5">${escapeHtml(err.message)}</td></tr>`;
+    }
+}
+
+function setText(node, text) {
+    node.textContent = text;
+}
+
 function escapeHtml(text) {
     const div = document.createElement('div');
-    div.textContent = text;
+    div.textContent = String(text || '');
     return div.innerHTML;
 }
+
+window.startPurchase = startPurchase;

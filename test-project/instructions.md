@@ -1,25 +1,54 @@
-# Agent Control Plane - Development Instructions
+﻿# INSTRUCTIONS
 
-## Overview
+1. Define vending domain models:
+   - Machine (id, name, location, status, heartbeatAt)
+   - Product (id, sku, name, price, image)
+   - MachineStock (machineId, productId, slot, qty)
+   - Transaction (id, machineId, productId, amount, status, paymentRef, dispensedAt)
+   - User (id, email, passwordHash, role)
 
-This project is a VS Code extension for AI agent trace analysis and debugging.
+2. Build backend APIs (MVP):
+   - GET /api/machines
+   - GET /api/machines/:machineId/products
+   - GET /api/machines/:machineId/stock
+   - POST /api/transactions/initiate
+   - POST /api/payments/verify
+   - POST /api/machines/:machineId/dispense
+   - GET /api/transactions/:id
+   - GET /api/admin/machines
+   - PUT /api/admin/machines/:machineId/stock
+   - GET /api/admin/transactions
 
-## Trace Rule (ENFORCED)
+3. Implement auth and RBAC:
+   - Admin/operator login endpoint.
+   - Role checks for admin/operator routes.
+   - Customer routes public for MVP.
 
-- Every code change MUST append a new entry to traces/
-- Never overwrite or delete existing trace entries
+4. Build frontend apps:
+   - Customer PWA page: machine product list and pay flow.
+   - Payment status screen: success/failure and dispense status.
+   - Admin/operator dashboard: machine status, stock update, recent transactions.
 
-Each append must include:
-```json
-{
-  "timestamp": "",
-  "file_changed": "",
-  "what_changed": "",
-  "why_changed": "",
-  "step_number": "auto-increment from last trace"
-}
-```
+5. Integrate payment and hardware abstractions:
+   - UPI-first gateway adapter interface.
+   - Simulated dispenser adapter (replaceable with real device integration).
+   - Ensure transaction state transitions are consistent.
 
-## Auto-Generated Rules (Gemini Verified)
+6. Add telemetry and diagnostics:
+   - Write audit events for payment, dispense, stock update, and failures.
+   - Keep watcher and parser tracing active.
 
-<!-- Rules verified by Gemini will be appended below this line -->
+7. Validate and correct from context:
+   - If generated APIs or routes diverge from CONTEXT.md, fix existing files.
+   - Prefer editing and correcting over creating duplicate implementations.
+
+8. Run loop commands:
+   - node backend/src/agentRunner.js
+   - node backend/src/watcher.js
+
+9. Keep runtime evidence updated:
+   - traces/session_log/logs.txt
+   - traces/session_log/agent_trace.txt
+   - traces/performance/memory.txt
+   - traces/performance/latency.txt
+   - GEMINI/src/output.md

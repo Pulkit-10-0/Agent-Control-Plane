@@ -244,6 +244,20 @@ export function activate(context: vscode.ExtensionContext) {
   metaWatcher.onDidDelete(() => tracesProvider.refresh());
   context.subscriptions.push(metaWatcher);
 
+  // Watch session_log and other session folders
+  const sessionWatcher = vscode.workspace.createFileSystemWatcher("**/traces/*/*.json");
+  sessionWatcher.onDidCreate(() => tracesProvider.refresh());
+  sessionWatcher.onDidChange(() => tracesProvider.refresh());
+  sessionWatcher.onDidDelete(() => tracesProvider.refresh());
+  context.subscriptions.push(sessionWatcher);
+
+  // Watch test-project traces folder
+  const testProjectWatcher = vscode.workspace.createFileSystemWatcher("**/test-project/traces/**/*.json");
+  testProjectWatcher.onDidCreate(() => tracesProvider.refresh());
+  testProjectWatcher.onDidChange(() => tracesProvider.refresh());
+  testProjectWatcher.onDidDelete(() => tracesProvider.refresh());
+  context.subscriptions.push(testProjectWatcher);
+
   // -----------------------------------------------------------------------
   // 7. Bridge: when RunContext loads an SDK run, push to LangGraph + replay
   // -----------------------------------------------------------------------
@@ -486,7 +500,7 @@ function sdkRunToLegacyTrace(run: RunArtifacts): LegacyTrace {
     traceId: run.meta.run_id,
     agentId: run.meta.agent_version || "unknown",
     taskId: "",
-    startTime: run.meta.created_at,
+    startTime: run.meta.created_at,   
     status: run.steps.some(s => s.status === "error") ? "error" : "completed",
     steps: run.steps.map((s) => ({
       stepNumber: s.step_id,
@@ -1130,6 +1144,8 @@ function getStepSummary(step: LegacyStep): string {
  * Discovers traces in the workspace. Supports:
  *   - Legacy JSON files: traces/*.json
  *   - SDK run folders: traces/run_* (containing meta.json)
+ *   - Session log folders: traces/session_log, test-project/traces/session_log
+ *   - Subdirectory traces: test-project/traces/*
  */
 class TracesTreeProvider implements vscode.TreeDataProvider<TraceItem> {
   private _onDidChangeTreeData = new vscode.EventEmitter<TraceItem | undefined>();
@@ -1143,111 +1159,195 @@ class TracesTreeProvider implements vscode.TreeDataProvider<TraceItem> {
     return element;
   }
 
-  async getChildren(): Promise<TraceItem[]> {
+  async getChildren(element?: TraceItem): Promise<TraceItem[]> {
+    // If element is provided, return children of that element (for expandable items)
+    if (element) {
+      return this.getChildrenOfItem(element);
+    }
+
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders) { return []; }
 
     const items: TraceItem[] = [];
 
     for (const folder of workspaceFolders) {
-      const tracesDir = path.join(folder.uri.fsPath, "traces");
-      if (!fs.existsSync(tracesDir)) { continue; }
+      // Scan both root traces/ and test-project/traces/
+      const traceDirs = [
+        path.join(folder.uri.fsPath, "traces"),
+        path.join(folder.uri.fsPath, "test-project", "traces")
+      ];
 
-      const entries = fs.readdirSync(tracesDir, { withFileTypes: true });
+      for (const tracesDir of traceDirs) {
+        if (!fs.existsSync(tracesDir)) { continue; }
 
-      // SDK run folders (run_*)
-      for (const entry of entries) {
-        if (entry.isDirectory() && entry.name.startsWith("run_")) {
-          const runDir = path.join(tracesDir, entry.name);
-          const metaPath = path.join(runDir, "meta.json");
-          if (fs.existsSync(metaPath)) {
-            try {
-              const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
-              items.push(
-                new TraceItem(
-                  meta.run_id || entry.name,
-                  "run",
-                  runDir,
-                  vscode.TreeItemCollapsibleState.None,
-                  "acp.openTrace"
-                )
-              );
-            } catch {
-              items.push(
-                new TraceItem(
-                  entry.name,
-                  "error",
-                  runDir,
-                  vscode.TreeItemCollapsibleState.None,
-                  "acp.openTrace"
-                )
-              );
+        const entries = fs.readdirSync(tracesDir, { withFileTypes: true });
+
+        // Session log folders (session_log, history, etc.)
+        for (const entry of entries) {
+          if (entry.isDirectory()) {
+            const dirPath = path.join(tracesDir, entry.name);
+
+            // SDK run folders (run_*)
+            if (entry.name.startsWith("run_")) {
+              const metaPath = path.join(dirPath, "meta.json");
+              if (fs.existsSync(metaPath)) {
+                try {
+                  const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+                  items.push(
+                    new TraceItem(
+                      meta.run_id || entry.name,
+                      "run",
+                      dirPath,
+                      vscode.TreeItemCollapsibleState.None,
+                      "acp.openTrace"
+                    )
+                  );
+                } catch {
+                  items.push(
+                    new TraceItem(
+                      entry.name,
+                      "error",
+                      dirPath,
+                      vscode.TreeItemCollapsibleState.None,
+                      "acp.openTrace"
+                    )
+                  );
+                }
+              }
+            } else if (entry.name !== ".git" && entry.name !== "replays") {
+              // Session folders (session_log, history, performance, summary)
+              const sessionFiles = this.getSessionFiles(dirPath);
+              if (sessionFiles.length > 0) {
+                const isTestProject = tracesDir.includes("test-project");
+                const label = isTestProject ? `[test] ${entry.name}` : entry.name;
+                items.push(
+                  new TraceItem(
+                    label,
+                    "session",
+                    dirPath,
+                    vscode.TreeItemCollapsibleState.Collapsed,
+                    ""
+                  )
+                );
+              }
             }
           }
         }
-      }
 
-      // Legacy JSON traces
-      const jsonFiles = entries
-        .filter(e => !e.isDirectory() && e.name.endsWith(".json"))
-        .slice(-10);
+        // Legacy JSON traces (directly in traces folder)
+        const jsonFiles = entries
+          .filter(e => !e.isDirectory() && e.name.endsWith(".json"))
+          .slice(-10);
 
-      for (const file of jsonFiles) {
-        const filePath = path.join(tracesDir, file.name);
-        try {
-          const content = fs.readFileSync(filePath, "utf-8");
-          const trace = JSON.parse(content) as LegacyTrace;
-          items.push(
-            new TraceItem(
-              trace.traceId,
-              trace.status,
-              filePath,
-              vscode.TreeItemCollapsibleState.None,
-              "acp.openTrace"
-            )
-          );
-        } catch {
-          items.push(
-            new TraceItem(
-              file.name,
-              "error",
-              filePath,
-              vscode.TreeItemCollapsibleState.None,
-              "acp.openTrace"
-            )
-          );
+        for (const file of jsonFiles) {
+          const filePath = path.join(tracesDir, file.name);
+          try {
+            const content = fs.readFileSync(filePath, "utf-8");
+            const trace = JSON.parse(content) as LegacyTrace;
+            items.push(
+              new TraceItem(
+                trace.traceId || file.name,
+                trace.status || "trace",
+                filePath,
+                vscode.TreeItemCollapsibleState.None,
+                "acp.openTrace"
+              )
+            );
+          } catch {
+            items.push(
+              new TraceItem(
+                file.name,
+                "error",
+                filePath,
+                vscode.TreeItemCollapsibleState.None,
+                "acp.openTrace"
+              )
+            );
+          }
         }
       }
     }
 
     return items;
   }
+
+  private getSessionFiles(dirPath: string): string[] {
+    try {
+      return fs.readdirSync(dirPath)
+        .filter(f => f.endsWith(".json"))
+        .sort((a, b) => {
+          // Sort by step number if present
+          const numA = parseInt(a.split("_")[0]) || 0;
+          const numB = parseInt(b.split("_")[0]) || 0;
+          return numA - numB;
+        });
+    } catch {
+      return [];
+    }
+  }
+
+  private getChildrenOfItem(element: TraceItem): TraceItem[] {
+    if (element.itemType !== "session") { return []; }
+
+    const files = this.getSessionFiles(element.filePath);
+    return files.slice(-50).map(file => {
+      const filePath = path.join(element.filePath, file);
+      const stepNum = file.split("_")[0];
+      return new TraceItem(
+        `Step ${stepNum}`,
+        "step",
+        filePath,
+        vscode.TreeItemCollapsibleState.None,
+        "acp.openTrace"
+      );
+    });
+  }
 }
 
 class TraceItem extends vscode.TreeItem {
   constructor(
     public readonly traceId: string,
-    public readonly status: string,
+    public readonly itemType: string,
     public readonly filePath: string,
     public readonly collapsibleState: vscode.TreeItemCollapsibleState,
     commandId: string
   ) {
-    super(traceId.length > 30 ? traceId.substring(0, 30) + "..." : traceId, collapsibleState);
-    this.tooltip = `${traceId}\nStatus: ${status}\n${filePath}`;
-    this.description = status;
+    super(traceId.length > 40 ? traceId.substring(0, 40) + "..." : traceId, collapsibleState);
+    this.tooltip = `${traceId}\nType: ${itemType}\n${filePath}`;
+    this.description = itemType;
 
-    const isRun = status === "run";
-    this.iconPath = isRun
-      ? new vscode.ThemeIcon("folder")
-      : status === "completed"
-        ? new vscode.ThemeIcon("pass")
-        : new vscode.ThemeIcon("error");
+    // Set icon based on item type
+    switch (itemType) {
+      case "run":
+        this.iconPath = new vscode.ThemeIcon("folder");
+        break;
+      case "session":
+        this.iconPath = new vscode.ThemeIcon("list-tree");
+        break;
+      case "step":
+        this.iconPath = new vscode.ThemeIcon("debug-stackframe");
+        break;
+      case "completed":
+        this.iconPath = new vscode.ThemeIcon("pass");
+        break;
+      case "trace":
+        this.iconPath = new vscode.ThemeIcon("file-code");
+        break;
+      case "error":
+        this.iconPath = new vscode.ThemeIcon("error");
+        break;
+      default:
+        this.iconPath = new vscode.ThemeIcon("file");
+    }
 
-    this.command = {
-      command: commandId,
-      title: isRun ? "Open Run" : "Open Trace",
-      arguments: [vscode.Uri.file(filePath)],
-    };
+    // Set command if provided
+    if (commandId) {
+      this.command = {
+        command: commandId,
+        title: itemType === "run" ? "Open Run" : "Open Trace",
+        arguments: [vscode.Uri.file(filePath)],
+      };
+    }
   }
 }
 
