@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "publisher": "acp",
     "engines": {
-        "vscode": "^1.85.0"
+        "vscode": "^1.90.0"
     },
     "categories": [
         "Debuggers",
@@ -16,6 +16,15 @@
     ],
     "main": "./out/extension.js",
     "contributes": {
+        "chatParticipants": [
+            {
+                "id": "agent-control-plane.trace-advisor",
+                "fullName": "ACP Trace Advisor",
+                "name": "ACP",
+                "description": "AI agent trace advisor - provides context from recent agent execution traces",
+                "isSticky": false
+            }
+        ],
         "commands": [
             {
                 "command": "acp.openTrace",
@@ -161,6 +170,12 @@
                 "title": "ACP: Branch from Graph Node",
                 "category": "Agent Control Plane",
                 "icon": "$(git-branch)"
+            },
+            {
+                "command": "agent-control-plane.toggleTraceInjection",
+                "title": "ACP: Toggle Trace Injection",
+                "category": "Agent Control Plane",
+                "icon": "$(debug-disconnect)"
             }
         ],
         "viewsContainers": {
@@ -276,6 +291,10 @@
                 },
                 {
                     "command": "acp.graph.branch",
+                    "when": "true"
+                },
+                {
+                    "command": "agent-control-plane.toggleTraceInjection",
                     "when": "true"
                 }
             ],

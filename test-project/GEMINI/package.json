@@ -1,0 +1,14 @@
+{
+  "name": "gemini-integration",
+  "version": "1.0.0",
+  "description": "Gemini API integration for ACP",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node src/test.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1"
+  }
+}

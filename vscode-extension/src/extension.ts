@@ -44,6 +44,19 @@ import { DiffContentProvider } from "./providers/DiffContentProvider";
 import { AnalysisEngine } from "./engines/AnalysisEngine";
 import { CounterfactualEngine } from "./engines/CounterfactualEngine";
 
+// Chat participant
+import {
+  handleChatRequest,
+  initializeStatusBar,
+  toggleTraceInjection
+} from "./chat/TraceAdvisorParticipant";
+
+// Tracing and Gemini integration
+import { TraceSessionLogger, GeminiService } from "./tracing";
+
+// Copilot output watcher
+import { CopilotOutputWatcher } from "./watchers/CopilotOutputWatcher";
+
 // Exporter
 import { LangGraphExporter } from "./langgraph/LangGraphExporter";
 
@@ -105,6 +118,8 @@ let autoPlayInterval: NodeJS.Timeout | undefined;
 let langGraphProvider: LangGraphProvider;
 let hierarchyProvider: HierarchyProvider;
 let tracesProvider: TracesTreeProvider;
+let traceSessionLogger: TraceSessionLogger | undefined;
+let geminiService: GeminiService | undefined;
 
 // ---------------------------------------------------------------------------
 // Activation
@@ -372,6 +387,73 @@ export function activate(context: vscode.ExtensionContext) {
       );
     })
   );
+
+  // -----------------------------------------------------------------------
+  // 9. GitHub Copilot Chat Participant
+  // -----------------------------------------------------------------------
+  const chatParticipant = vscode.chat.createChatParticipant(
+    'agent-control-plane.trace-advisor',
+    handleChatRequest
+  );
+  chatParticipant.iconPath = vscode.Uri.joinPath(context.extensionUri, 'resources', 'icon.svg');
+  context.subscriptions.push(chatParticipant);
+
+  // -----------------------------------------------------------------------
+  // 10. Status bar item for A/B testing (trace injection toggle)
+  // -----------------------------------------------------------------------
+  initializeStatusBar(context);
+
+  // Register toggle command
+  context.subscriptions.push(
+    vscode.commands.registerCommand('agent-control-plane.toggleTraceInjection', () => {
+      const newState = toggleTraceInjection();
+      vscode.window.showInformationMessage(
+        `ACP Trace Injection: ${newState ? 'ON' : 'OFF'}`
+      );
+    })
+  );
+
+  // -----------------------------------------------------------------------
+  // 11. Trace Session Logger and Gemini Integration
+  // -----------------------------------------------------------------------
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (workspaceFolders && workspaceFolders.length > 0) {
+    const workspaceRoot = workspaceFolders[0].uri.fsPath;
+
+    // Initialize Gemini service
+    geminiService = new GeminiService(workspaceRoot);
+
+    // Initialize trace session logger
+    traceSessionLogger = new TraceSessionLogger(workspaceRoot, context);
+
+    // Wire up Gemini verification callback
+    traceSessionLogger.setGeminiVerificationCallback(async (logs) => {
+      if (geminiService && geminiService.isConfigured()) {
+        return await geminiService.verifyTraces(logs);
+      }
+      return null;
+    });
+
+    context.subscriptions.push({
+      dispose: () => {
+        if (traceSessionLogger) {
+          traceSessionLogger.dispose();
+        }
+      }
+    });
+
+    console.log('[ACP] Trace session logger initialized');
+  }
+
+  // -----------------------------------------------------------------------
+  // 12. Copilot Output Watcher
+  // -----------------------------------------------------------------------
+  const copilotWatcher = new CopilotOutputWatcher(context);
+  copilotWatcher.start();
+  context.subscriptions.push({
+    dispose: () => copilotWatcher.dispose()
+  });
+  console.log('[ACP] Copilot output watcher initialized');
 }
 
 export function deactivate() {
