@@ -11,7 +11,7 @@ A **developer-grade control plane** for recording, replaying, inspecting, and te
 
 ## Demo Video
 
-[![▶ Watch Agent Control Plane Demo](media/Thumbnail.jpeg)](https://youtu.be/UMdowkXcTN0)
+[![▶ Watch Agent Control Plane Demo](media/Thumbnail.jpeg)](https://youtu.be/UMdowkXcTN0) 
 
 > Click the thumbnail to watch a full demo showcasing trace recording, deterministic replay,
 > behavioral testing, and step-by-step inspection.
